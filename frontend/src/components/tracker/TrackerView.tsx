@@ -25,7 +25,7 @@ interface AddJobForm {
 }
 
 export function TrackerView() {
-  const { jobs, addJob, updateJobStatus, removeJob, fetchJobs } = useTrackerStore();
+  const { jobs, fetchError, addJob, updateJobStatus, removeJob, fetchJobs } = useTrackerStore();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddJobForm>({
     company: "",
@@ -85,6 +85,16 @@ export function TrackerView() {
           添加投递
         </Button>
       </div>
+
+      {/* API error notice */}
+      {fetchError && (
+        <div
+          className="mx-6 mt-3 px-3 py-2 rounded-md text-xs"
+          style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}
+        >
+          ⚠️ 无法从服务器加载投递数据（{fetchError}），当前显示本地数据。
+        </div>
+      )}
 
       {/* Stats */}
       <div

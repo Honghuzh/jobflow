@@ -67,11 +67,12 @@ export function ChatPanel() {
           updateMessage(assistantId, { content: accumulated, isLoading: false });
         },
         (toolCall) => {
+          // Use getState() to avoid stale closure over messages
+          const current = useAppStore.getState().messages.find(
+            (m) => m.id === assistantId
+          );
           updateMessage(assistantId, {
-            toolCalls: [
-              ...(messages.find((m) => m.id === assistantId)?.toolCalls ?? []),
-              toolCall,
-            ],
+            toolCalls: [...(current?.toolCalls ?? []), toolCall],
           });
         },
         () => {

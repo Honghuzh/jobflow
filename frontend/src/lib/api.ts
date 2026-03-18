@@ -77,9 +77,14 @@ export async function streamMessage(
             } else if (parsed.type === "error") {
               onError?.(parsed.message);
             }
-          } catch {
-            // Plain text token
-            if (data) onToken?.(data);
+          } catch (parseErr) {
+            // If it starts with '{' it likely should have been valid JSON — log it
+            if (data.startsWith("{")) {
+              console.warn("SSE: Failed to parse JSON event:", parseErr, data);
+            } else if (data) {
+              // Plain text token (non-JSON SSE data)
+              onToken?.(data);
+            }
           }
         }
       }

@@ -21,6 +21,7 @@ export interface JobEntry {
 
 interface TrackerState {
   jobs: JobEntry[];
+  fetchError: string | null;
   addJob: (job: Omit<JobEntry, "id">) => void;
   updateJobStatus: (id: string, status: JobStatus) => void;
   removeJob: (id: string) => void;
@@ -29,6 +30,7 @@ interface TrackerState {
 
 export const useTrackerStore = create<TrackerState>((set) => ({
   jobs: [],
+  fetchError: null,
 
   addJob: (job) =>
     set((state) => ({
@@ -49,10 +51,12 @@ export const useTrackerStore = create<TrackerState>((set) => ({
     try {
       const data = await getTrackerList();
       if (Array.isArray(data)) {
-        set({ jobs: data as JobEntry[] });
+        set({ jobs: data as JobEntry[], fetchError: null });
       }
-    } catch {
-      // Use local state if API fails
+    } catch (err) {
+      set({
+        fetchError: err instanceof Error ? err.message : "获取投递列表失败",
+      });
     }
   },
 }));
