@@ -37,10 +37,9 @@ class ResumeParseMiddleware(Middleware):
 
         logger.info("ResumeParseMiddleware: 正在解析简历文件 %s", resume_file)
         try:
-            # Phase 2: 调用真实的 resume_parser 工具
-            # from jobflow.tools.builtins.resume_parser import parse_resume
-            # resume_data = parse_resume.invoke({"file_path": resume_file})
-            resume_data = {"raw_text": f"（占位：来自 {resume_file}）", "name": "", "contact": {}, "education": [], "experience": [], "skills": {}, "projects": []}
+            from jobflow.tools.builtins.resume_parser import parse_resume
+
+            resume_data = parse_resume.invoke({"file_path": resume_file})
             logger.info("ResumeParseMiddleware: 简历解析完成")
             return {"resume_data": resume_data}
         except Exception as exc:
