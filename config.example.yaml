@@ -1,0 +1,27 @@
+models:
+  - name: gpt-4o
+    display_name: GPT-4o
+    use: langchain_openai:ChatOpenAI
+    model: gpt-4o
+    api_key: $OPENAI_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+
+tools:
+  - name: web_search
+    use: jobflow.tools.community.tavily:web_search_tool
+  - name: web_fetch
+    use: jobflow.tools.community.tavily:web_fetch_tool
+
+skills:
+  path: skills
+
+subagents:
+  enabled: true
+  max_concurrent: 3
+  timeout_seconds: 900
+
+memory:
+  enabled: true
+  storage_path: .jobflow/memory.json
+  debounce_seconds: 30
