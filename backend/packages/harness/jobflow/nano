@@ -1,0 +1,2 @@
+from dotenv import load_dotenv
+load_dotenv() # 这行不跑，os.environ 就拿不到 .env 里的内容

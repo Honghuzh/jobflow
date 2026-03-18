@@ -2,7 +2,7 @@ models:
   - name: gpt-4o
     display_name: GPT-4o
     use: langchain_openai:ChatOpenAI
-    model: gpt-4o
+    model: gpt-5.1-codex
     api_key: $OPENAI_API_KEY
     max_tokens: 4096
     temperature: 0.7
