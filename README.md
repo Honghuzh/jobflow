@@ -89,6 +89,14 @@ cp .env.example .env
 make dev
 ```
 
+### 4. 前端
+
+```bash
+make frontend-install
+make frontend-dev
+# 访问 http://localhost:3000
+```
+
 ## 目录结构
 
 ```
@@ -142,10 +150,10 @@ jobflow/
 - [ ] SSE 流式输出
 
 ### Phase 3 — 前端
-- [ ] Next.js + React 界面
-- [ ] 对话式交互
-- [ ] 简历/JD 上传
-- [ ] 投递进度看板
+- [x] Next.js + React 界面
+- [x] 对话式交互
+- [x] 简历/JD 上传
+- [x] 投递进度看板
 
 ### Phase 4 — 增强
 - [ ] 多租户支持
