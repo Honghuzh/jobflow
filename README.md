@@ -97,6 +97,13 @@ make gateway
 make dev
 ```
 
+### 4. 前端
+
+```bash
+make frontend-install
+make frontend-dev
+# 访问 http://localhost:3000
+```
 ## API 端点
 
 Phase 2 实现后，通过 `make gateway` 启动 FastAPI 服务（默认 `http://localhost:8001`）：
@@ -187,10 +194,10 @@ jobflow/
 - [x] 线程管理（内存存储，UUID 线程）
 
 ### Phase 3 — 前端
-- [ ] Next.js + React 界面
-- [ ] 对话式交互
-- [ ] 简历/JD 上传
-- [ ] 投递进度看板
+- [x] Next.js + React 界面
+- [x] 对话式交互
+- [x] 简历/JD 上传
+- [x] 投递进度看板
 
 ### Phase 4 — 增强
 - [ ] 多租户支持
