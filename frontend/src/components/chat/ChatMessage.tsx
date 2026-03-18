@@ -78,6 +78,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         <span
           className="text-xs mt-1 px-1"
           style={{ color: "var(--muted-foreground)" }}
+          suppressHydrationWarning
         >
           {new Date(message.timestamp).toLocaleTimeString("zh-CN", {
             hour: "2-digit",
