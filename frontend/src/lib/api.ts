@@ -28,15 +28,20 @@ export async function streamMessage(
   message: string,
   threadId?: string,
   onToken?: (token: string) => void,
-  onToolCall?: (toolCall: ToolCall) => void,
+  onToolCall?: (toolCall: any) => void,
   onDone?: () => void,
-  onError?: (error: string) => void
+  onError?: (error: string) => void,
+  resumeData?: any // <-- 新增：接收可选的简历数据
 ): Promise<void> {
   try {
     const res = await fetch(`${API_BASE}/chat/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, thread_id: threadId }),
+      body: JSON.stringify({ 
+        message, 
+        thread_id: threadId,
+        resume_data: resumeData // <-- 新增：将简历数据发送给后端
+      }),
     });
 
     if (!res.ok) {
@@ -62,41 +67,47 @@ export async function streamMessage(
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") {
+        const trimmedLine = line.trim();
+        if (!trimmedLine || !trimmedLine.startsWith("data: ")) continue;
+
+        const dataString = trimmedLine.slice(6).trim();
+        
+        if (dataString === "[DONE]") {
+          onDone?.();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(dataString);
+          if (parsed.type === "done") {
             onDone?.();
             return;
           }
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === "token" && parsed.content) {
-              onToken?.(parsed.content);
-            } else if (parsed.type === "tool_call") {
-              onToolCall?.(parsed.tool_call);
-            } else if (parsed.type === "error") {
-              onError?.(parsed.message);
+
+          if (parsed.type === "token" && Array.isArray(parsed.content)) {
+            for (const item of parsed.content) {
+              if (item.type === "text" && item.text) {
+                onToken?.(item.text);
+              }
             }
-          } catch (parseErr) {
-            // If it starts with '{' it likely should have been valid JSON — log it
-            if (data.startsWith("{")) {
-              console.warn("SSE: Failed to parse JSON event:", parseErr, data);
-            }
-            // Do not treat arbitrary plain text as a token to avoid echoing user input
+          } 
+          else if (typeof parsed.content === "string") {
+            onToken?.(parsed.content);
           }
+          else if (parsed.type === "tool_call" || parsed.tool_call) {
+            onToolCall?.(parsed.tool_call || parsed);
+          }
+          else if (parsed.type === "error") {
+            onError?.(parsed.message || "后端返回错误");
+          }
+        } catch (parseErr) {
+          // ignore
         }
       }
     }
     onDone?.();
   } catch (err) {
-    const isNetworkError = err instanceof TypeError;
-    onError?.(
-      isNetworkError
-        ? "无法连接到后端服务，请确认后端服务已启动"
-        : err instanceof Error
-        ? err.message
-        : String(err)
-    );
+    onError?.(err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -126,7 +137,7 @@ export async function matchResume(
 export async function uploadResume(file: File): Promise<unknown> {
   const formData = new FormData();
   formData.append("file", file);
-  const res = await fetch(`${API_BASE}/resume/upload`, {
+  const res = await fetch(`${API_BASE}/resume/parse`, {
     method: "POST",
     body: formData,
   });

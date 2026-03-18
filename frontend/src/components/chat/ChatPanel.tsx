@@ -12,6 +12,7 @@ export function ChatPanel() {
     messages,
     threadId,
     isStreaming,
+    resumeData,
     addMessage,
     updateMessage,
     setStreaming,
@@ -29,15 +30,19 @@ export function ChatPanel() {
   const handleSend = async (text: string, file?: File) => {
     if (isStreaming) return;
 
-    // Handle file upload
+    let currentResumeData = resumeData;
+
+    // 1. 处理文件上传
     if (file) {
       try {
         const result = await uploadResume(file);
         if (result && typeof result === "object") {
-          setResumeData(result as Record<string, unknown>);
+          const formattedResult = result as Record<string, unknown>;
+          setResumeData(formattedResult);
+          currentResumeData = formattedResult;
         }
         addMessage({ role: "system", content: `简历 "${file.name}" 上传成功` });
-      } catch {
+      } catch (err) {
         addMessage({ role: "system", content: `文件上传失败` });
       }
       if (!text || text === `[上传文件: ${file.name}]`) return;
@@ -45,10 +50,10 @@ export function ChatPanel() {
 
     if (!text.trim()) return;
 
-    // Add user message
+    // 2. 添加用户消息
     addMessage({ role: "user", content: text });
 
-    // Add placeholder assistant message
+    // 3. 添加 AI 占位
     const assistantId = addMessage({
       role: "assistant",
       content: "",
@@ -59,6 +64,7 @@ export function ChatPanel() {
     let accumulated = "";
 
     try {
+      // 4. 调用流式 API
       await streamMessage(
         text,
         threadId ?? undefined,
@@ -67,7 +73,6 @@ export function ChatPanel() {
           updateMessage(assistantId, { content: accumulated, isLoading: false });
         },
         (toolCall) => {
-          // Use getState() to avoid stale closure over messages
           const current = useAppStore.getState().messages.find(
             (m) => m.id === assistantId
           );
@@ -88,7 +93,8 @@ export function ChatPanel() {
             isLoading: false,
           });
           setStreaming(false);
-        }
+        },
+        currentResumeData // 传入简历数据
       );
     } catch (err) {
       updateMessage(assistantId, {

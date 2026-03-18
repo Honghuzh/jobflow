@@ -16,25 +16,11 @@ _DEFAULT_TOOLS: list[Any] = []
 
 
 def make_career_agent(config: dict | None = None):
-    """构建并返回编译好的 Career Agent Graph。
-
-    借鉴 DeerFlow 的 make_agent 模式，组装 Middleware Chain 并返回 CompiledGraph。
-    如果 LLM 不可用（缺少 API Key），fallback 到占位实现。
-
-    Args:
-        config: Agent 配置字典，包含模型设置、工具列表等
-
-    Returns:
-        编译好的 LangGraph CompiledGraph 实例，或占位对象（LLM 不可用时）
-    """
+    """构建并返回编译好的 Career Agent Graph。"""
     cfg = config or {}
 
-    # 构建系统提示词
-    system_prompt = apply_prompt_template(
-        resume_data=cfg.get("resume_data", "（暂无简历数据）"),
-        job_context=cfg.get("job_context", "（暂无岗位信息）"),
-        memory=cfg.get("memory", "（暂无历史记忆）"),
-    )
+    # --- 修改点 1：移除这里的静态 system_prompt 生成 ---
+    # 不再在这里调用 apply_prompt_template
 
     # 组装 Middleware Chain
     from jobflow.agents.middlewares.base import MiddlewareChain
@@ -51,35 +37,33 @@ def make_career_agent(config: dict | None = None):
     )
 
     # 内置工具列表
-    from jobflow.tools.builtins.jd_parser import parse_jd
+    from jobflow.tools.builtins.jd_parser import parse_jd 
     from jobflow.tools.builtins.job_tracker import get_job_stats, update_job_status
     from jobflow.tools.builtins.match_scorer import match_score
     from jobflow.tools.builtins.resume_parser import parse_resume
 
     builtin_tools = [parse_jd, match_score, update_job_status, get_job_stats, parse_resume]
-
-    # 工具列表（可通过 config 覆盖）
     tools = cfg.get("tools", builtin_tools)
 
     # 尝试构建真实 LangGraph Agent
-    model_name = cfg.get("model_name", "gpt-4o")
-    compiled_graph = _try_build_langgraph(system_prompt, tools, model_name)
+    model_name = cfg.get("model_name", "gpt-5.1-codex")
+    
+    # --- 修改点 2：不再传递 system_prompt，让内部动态生成 ---
+    compiled_graph = _try_build_langgraph(tools, model_name)
 
     if compiled_graph is not None:
-        logger.info("Career Agent 构建完成（LangGraph 模式），已加载 %d 个工具，%d 层 Middleware", len(tools), len(middleware_chain.middlewares))
         return _CareerAgentWithMiddleware(graph=compiled_graph, middleware_chain=middleware_chain)
 
-    # Fallback：占位实现
-    logger.warning("Career Agent fallback 到占位模式（LLM 不可用）")
+    # Fallback
     return _CareerAgentPlaceholder(
-        system_prompt=system_prompt,
+        system_prompt="Fallback Prompt", 
         middleware_chain=middleware_chain,
         tools=tools,
     )
 
 
-def _try_build_langgraph(system_prompt: str, tools: list, model_name: str) -> Any | None:
-    """尝试构建真实的 LangGraph StateGraph，失败时返回 None。"""
+def _try_build_langgraph(tools: list, model_name: str) -> Any | None:
+    """尝试构建真实的 LangGraph StateGraph。"""
     try:
         from langchain_core.messages import SystemMessage
         from langgraph.graph import END, StateGraph
@@ -98,9 +82,26 @@ def _try_build_langgraph(system_prompt: str, tools: list, model_name: str) -> An
                 return "tools"
             return END
 
-        def agent_node(state: dict) -> dict:
+        # --- 修改点 3：核心动态注入逻辑 ---
+        def agent_node(state: dict, config: Any = None) -> dict:  # 加上 = None 变成可选参数
             messages = state.get("messages", [])
-            system_msg = SystemMessage(content=system_prompt)
+    
+            # 增加一层防御性逻辑
+            configurable = {}
+            if config and hasattr(config, "get"):
+                configurable = config.get("configurable", {})
+    
+            # 获取简历数据
+            resume_data = configurable.get("resume_data")
+    
+            # 动态生成 System Prompt
+            dynamic_system_prompt = apply_prompt_template(
+                resume_data=resume_data if resume_data else "（用户尚未上传简历数据）",
+                job_context=configurable.get("job_context", "（暂无岗位信息）"),
+                memory=configurable.get("memory", "（暂无历史记忆）"),
+            )
+    
+            system_msg = SystemMessage(content=dynamic_system_prompt)
             response = llm_with_tools.invoke([system_msg] + messages)
             return {"messages": [response]}
 
@@ -113,7 +114,7 @@ def _try_build_langgraph(system_prompt: str, tools: list, model_name: str) -> An
 
         return graph.compile()
     except Exception as exc:
-        logger.debug("构建 LangGraph 失败（预期，LLM 未配置时）: %s", exc)
+        logger.error("!!! 核心报错：构建 LangGraph 失败 !!!", exc_info=True)
         return None
 
 
@@ -154,4 +155,6 @@ class _CareerAgentPlaceholder:
         state = await self.middleware_chain.run_before(state, cfg)
         response = {"messages": state.get("messages", []), "status": "placeholder"}
         response = await self.middleware_chain.run_after(state, response, cfg)
+        
+        
         return response

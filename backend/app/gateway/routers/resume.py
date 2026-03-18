@@ -17,16 +17,25 @@ router = APIRouter(prefix="/api/resume", tags=["resume"])
 
 @router.post("/upload")
 async def upload_resume(file: UploadFile, thread_id: str = "default") -> dict:
-    """上传简历文件并保存。"""
+    """上传并【解析】简历。"""
     try:
         from app.gateway.uploads import save_upload
+        from jobflow.tools.builtins.resume_parser import parse_resume
+        from app.gateway.thread_manager import get_thread_manager
 
+        # 1. 保存
         saved_path = await save_upload(file, thread_id)
-        return {"saved_path": saved_path, "filename": file.filename, "thread_id": thread_id}
-    except ValueError as exc:
-        return {"error": str(exc)}
+        
+        # 2. 解析 (把 parse 的逻辑挪过来)
+        result = parse_resume.invoke({"file_path": saved_path})
+        
+        # 3. 持久化到线程
+        get_thread_manager().update_state(thread_id, {"resume_data": result})
+        
+        # 4. 返回完整结果（包含 content/text），这样前端 Payload 就不再只是路径了
+        return result 
     except Exception as exc:
-        logger.error("上传简历失败: %s", exc)
+        logger.error("上传并解析简历失败: %s", exc)
         return {"error": str(exc)}
 
 

@@ -5,6 +5,12 @@ import importlib
 import logging
 import os
 import re
+import os
+from dotenv import load_dotenv
+
+# 强行指定加载 .env 文件
+# 我们假设 .env 在 backend 目录下
+load_dotenv(os.path.join(os.getcwd(), ".env"))
 
 logger = logging.getLogger(__name__)
 
