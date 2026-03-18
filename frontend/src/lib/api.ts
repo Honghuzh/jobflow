@@ -81,17 +81,22 @@ export async function streamMessage(
             // If it starts with '{' it likely should have been valid JSON — log it
             if (data.startsWith("{")) {
               console.warn("SSE: Failed to parse JSON event:", parseErr, data);
-            } else if (data) {
-              // Plain text token (non-JSON SSE data)
-              onToken?.(data);
             }
+            // Do not treat arbitrary plain text as a token to avoid echoing user input
           }
         }
       }
     }
     onDone?.();
   } catch (err) {
-    onError?.(err instanceof Error ? err.message : String(err));
+    const isNetworkError = err instanceof TypeError;
+    onError?.(
+      isNetworkError
+        ? "无法连接到后端服务，请确认后端服务已启动"
+        : err instanceof Error
+        ? err.message
+        : String(err)
+    );
   }
 }
 
