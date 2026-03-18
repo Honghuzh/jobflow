@@ -1,4 +1,4 @@
-.PHONY: install dev test lint format
+.PHONY: install dev test lint format gateway
 
 install:
 	uv sync
@@ -14,3 +14,6 @@ lint:
 
 format:
 	uv run ruff format .
+
+gateway:
+	uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 --reload

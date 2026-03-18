@@ -69,9 +69,14 @@ class MemoryUpdater:
         current = self._load()
 
         if llm is None:
-            # Phase 2: 使用 LLM 提取记忆
-            # 当前占位：直接返回现有记忆
-            logger.debug("MemoryUpdater.update: LLM 未配置，跳过提取")
+            # Fallback：使用简单关键词提取
+            logger.debug("MemoryUpdater.update: LLM 未配置，使用关键词提取 fallback")
+            extracted = _extract_memory_by_keywords(conversation)
+            if extracted:
+                updated = self._deep_merge(current, extracted)
+                self._save(updated)
+                self._memory = updated
+                return updated
             return current
 
         prompt = MEMORY_UPDATE_PROMPT.format(
@@ -165,3 +170,58 @@ class MemoryUpdater:
             elif value:  # 非空值才覆盖
                 result[key] = value
         return result
+
+
+# ── 关键词提取 Fallback ──────────────────────────────────────────────────
+
+
+# 技术技能关键词列表
+_TECH_KEYWORDS = [
+    "Python", "Java", "Go", "JavaScript", "TypeScript", "Rust", "C++", "C#", "Swift", "Kotlin",
+    "React", "Vue", "Angular", "Django", "FastAPI", "Flask", "Spring",
+    "MySQL", "PostgreSQL", "MongoDB", "Redis", "Elasticsearch",
+    "AWS", "GCP", "Azure", "Docker", "Kubernetes",
+    "Spark", "Flink", "Kafka", "PyTorch", "TensorFlow", "LangChain",
+    "Git", "Linux", "Nginx",
+]
+
+# 城市关键词
+_CITY_KEYWORDS = ["北京", "上海", "深圳", "杭州", "广州", "成都", "武汉", "南京", "西安", "重庆"]
+
+# 职位关键词
+_ROLE_KEYWORDS = ["工程师", "开发", "架构师", "产品经理", "数据分析", "算法", "前端", "后端", "全栈", "运维", "测试"]
+
+
+def _extract_memory_by_keywords(conversation: str) -> dict:
+    """使用关键词匹配从对话中提取简单记忆（LLM fallback）。"""
+    import re
+
+    result: dict[str, Any] = {}
+    text = conversation
+
+    # 提取技术技能
+    found_skills = [kw for kw in _TECH_KEYWORDS if kw.lower() in text.lower()]
+    if found_skills:
+        result.setdefault("skill_profile", {})["technical_skills"] = found_skills
+
+    # 提取目标城市
+    found_cities = [city for city in _CITY_KEYWORDS if city in text]
+    if found_cities:
+        result.setdefault("job_preference", {})["target_cities"] = found_cities
+
+    # 提取目标职位
+    found_roles = [role for role in _ROLE_KEYWORDS if role in text]
+    if found_roles:
+        result.setdefault("job_preference", {})["target_roles"] = found_roles
+
+    # 提取薪资期望（如 "20k-30k", "25K", "月薪 20000"）
+    salary_match = re.search(r"(\d+[kK万](?:\s*[-~]\s*\d+[kK万])?|月薪\s*\d+)", text)
+    if salary_match:
+        result.setdefault("job_preference", {})["salary_expectation"] = salary_match.group()
+
+    # 提取工作年限（如 "3年经验", "5年工作经验"）
+    exp_match = re.search(r"(\d+)\s*年(?:工作|开发|编程)?经验", text)
+    if exp_match:
+        result.setdefault("skill_profile", {})["years_of_experience"] = int(exp_match.group(1))
+
+    return result

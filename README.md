@@ -83,7 +83,15 @@ cp .env.example .env
 # 编辑 .env，填入 API Key
 ```
 
-### 3. 运行
+### 3. 启动 Gateway（Phase 2）
+
+```bash
+make gateway
+# 或：cd backend && make gateway
+# 访问 http://localhost:8001/docs 查看 API 文档
+```
+
+### 4. 运行
 
 ```bash
 make dev
@@ -96,6 +104,27 @@ make frontend-install
 make frontend-dev
 # 访问 http://localhost:3000
 ```
+## API 端点
+
+Phase 2 实现后，通过 `make gateway` 启动 FastAPI 服务（默认 `http://localhost:8001`）：
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/health` | GET | 健康检查 |
+| `/api/config` | GET | 配置信息 |
+| `/api/chat` | POST | 对话请求 |
+| `/api/chat/stream` | POST | SSE 流式对话 |
+| `/api/jobs/parse-jd` | POST | 解析 JD 文本 |
+| `/api/jobs/match` | POST | 计算简历-JD 匹配度 |
+| `/api/tracker/update` | POST | 更新投递状态 |
+| `/api/tracker/stats` | GET | 获取投递统计 |
+| `/api/tracker/list` | GET | 获取所有投递记录 |
+| `/api/resume/upload` | POST | 上传简历文件 |
+| `/api/resume/parse` | POST | 解析简历文件 |
+| `/api/resume/current` | GET | 获取当前简历数据 |
+| `/api/skills` | GET | 列出所有 Skill |
+| `/api/skills/{name}` | GET | 获取指定 Skill 详情 |
+| `/api/models` | GET | 列出可用模型 |
 
 ## 目录结构
 
@@ -111,6 +140,19 @@ jobflow/
 ├── backend/
 │   ├── Makefile
 │   ├── pyproject.toml
+│   ├── app/
+│   │   └── gateway/             # FastAPI Gateway（Phase 2）
+│   │       ├── app.py           # FastAPI 主入口
+│   │       ├── sse.py           # SSE 流式输出
+│   │       ├── uploads.py       # 文件上传处理
+│   │       ├── thread_manager.py # 线程管理
+│   │       └── routers/         # 路由模块
+│   │           ├── chat.py
+│   │           ├── jobs.py
+│   │           ├── tracker.py
+│   │           ├── resume.py
+│   │           ├── skills.py
+│   │           └── models_route.py
 │   ├── packages/harness/jobflow/
 │   │   ├── agents/
 │   │   │   ├── career_agent/    # Career Agent（Lead Agent）
@@ -128,7 +170,7 @@ jobflow/
 │   ├── public/                  # 内置 Skill 定义
 │   └── custom/                  # 自定义 Skill（用户扩展）
 │
-└── frontend/                    # 前端（Phase 2）
+└── frontend/                    # 前端（Phase 3）
 ```
 
 ## 开发路线图
@@ -143,11 +185,13 @@ jobflow/
 - [x] 求职记忆系统骨架
 
 ### Phase 2 — 后端完整实现
-- [ ] FastAPI Gateway
-- [ ] 完整的 LLM 集成
-- [ ] PDF/Word 简历解析
-- [ ] 完整的记忆系统
-- [ ] SSE 流式输出
+- [x] FastAPI Gateway（health check, CORS, 全路由挂载）
+- [x] 完整的 LLM 集成（LangGraph StateGraph，无 API Key 时 fallback）
+- [x] PDF/Word 简历解析（pymupdf/python-docx 可选依赖，优雅降级）
+- [x] 完整的记忆系统（LLM 提取 + 关键词 fallback）
+- [x] SSE 流式输出（/api/chat/stream）
+- [x] 文件上传处理（10MB 限制，类型校验）
+- [x] 线程管理（内存存储，UUID 线程）
 
 ### Phase 3 — 前端
 - [x] Next.js + React 界面

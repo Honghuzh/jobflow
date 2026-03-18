@@ -1,4 +1,4 @@
-.PHONY: check install dev test stop
+.PHONY: check install dev test stop gateway
 
 check:
 	@echo "Checking prerequisites..."
@@ -13,6 +13,9 @@ dev:
 
 test:
 	cd backend && make test
+
+gateway:
+	cd backend && make gateway
 
 stop:
 	@echo "Stopping services..."
